@@ -21,7 +21,6 @@ view = View()
 model = Model()
 view.set_model(model)
 controller = Controller(model, view)
-
 fpsTime = pygame.time.Clock()
 
 while 1:

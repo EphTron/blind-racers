@@ -24,9 +24,12 @@ class Player:
 
         self.player_position = Vec2(self.image_position.x + self.image_size.x / 2,
                                     self.image_position.y + self.image_size.y / 2)
-        self.direction = math.pi #0.0#90.0
         self.image_direction = 0
+        self.direction = math.pi #0.0#90.0
+
         self.path = [(self.player_position.x,self.player_position.y)]
+
+        self.crash_flag = False
 
         #ship values
         self.steer_speed = 0.05
@@ -38,6 +41,12 @@ class Player:
         if RIGHT == True and LEFT == False:
             self.direction -= self.steer_speed
             self.image_direction -= self.steer_speed * (180/math.pi)
+
+    def set_crash_flag(self, BOOL):
+        self.crash_flag = BOOL
+
+    def has_crashed(self):
+        return self.crash_flag
 
     def create_path(self, POSITION):
         _new_pos = (POSITION.x,POSITION.y)

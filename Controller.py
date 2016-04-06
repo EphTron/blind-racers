@@ -14,6 +14,7 @@ class Controller:
 
     def run(self, time):
         self.get_input()
+        self.check_collision(self.model.get_player())
         self.view.draw() 
 
         pygame.display.update()
@@ -56,35 +57,45 @@ class Controller:
             elif event.type == KEYUP:
                 if event.key == K_w:
                     self.map.set_map_visibility(True)
-          #  if event.key == K_a:
-          #    self.MODEL.player.stop()
+            #   if event.key == K_a:
+            #       self.MODEL.player.stop()
+
 
         self.move_player(self.model.get_player())
 
 
-    def move_player(self,PLAYER):
+
+    def move_player(self, PLAYER):
         _player_position = PLAYER.get_position()
         _player_direction =  PLAYER.get_direction()
+
         if self.wasd[0] == 1: # forward
-            #print ("direction",(_player_direction))
-            #print ("direction cos",math.cos(_player_direction))
-            _player_position.x = _player_position.x + math.sin(_player_direction)
-            _player_position.y = _player_position.y + math.cos(_player_direction)
-            PLAYER.set_position(VEC2 = _player_position)
+            if not PLAYER.has_crashed():
+                _player_position.x = _player_position.x + math.sin(_player_direction)
+                _player_position.y = _player_position.y + math.cos(_player_direction)
+                PLAYER.set_position(VEC2 = _player_position)
+            elif PLAYER.has_crashed():
+                self.map.set_map_visibility(True)
+
         if self.wasd[1] == 1: # left
+
             PLAYER.rotate(LEFT = True)
             PLAYER.create_path(_player_position)
-            print PLAYER.get_direction()
-            print PLAYER.get_image_direction()
-            #print "left"
     
         if self.wasd[2] == 1: # back
+
             print len(PLAYER.get_path())
+
         if self.wasd[3] == 1: # right
-            #print "right"
-            PLAYER.create_path(_player_position)
+            
             PLAYER.rotate(RIGHT = True)
+            PLAYER.create_path(_player_position)
 
-            #print PLAYER.get_direction()
-            #print "pos", PLAYER.get_position().x, PLAYER.get_position().y
+    def check_collision(self, PLAYER):
 
+        _player_position = PLAYER.get_position()
+        _pixel_color = self.map.get_image().get_at((int(_player_position.x),int(_player_position.y)))
+        if _pixel_color == self.map.get_off_color():
+            PLAYER.set_crash_flag(True)
+        elif _pixel_color == self.map.get_road_color():
+            PLAYER.set_crash_flag(False)
