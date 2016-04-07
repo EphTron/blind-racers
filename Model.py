@@ -18,7 +18,7 @@ class Model:
 
 
         #init player
-        self.player = Player(START_POSITION = Vec2(350,300))
+        self.player = Player(START_POSITION = (350,300))
 
     def get_map(self):
         return self.map

@@ -13,22 +13,21 @@ class Controller:
         self.map = self.model.get_map()
 
     def run(self, time):
-        self.get_input()
+        self.get_input(self.model.get_player())
         self.check_collision(self.model.get_player())
         self.view.draw() 
 
         pygame.display.update()
         time.tick(self.model.fps)
      
-    def get_input(self):
+    def get_input(self, PLAYER):
         _keys = pygame.key.get_pressed()  #checking pressed keys
         if _keys[pygame.K_w]:
             self.wasd[0] = 1
-            self.map.set_map_visibility(False)
+            #self.map.set_map_visibility(False)
         else:
             self.wasd[0] = 0
             
-
         if _keys[pygame.K_a]:
             self.wasd[1] = 1
         else:
@@ -54,9 +53,30 @@ class Controller:
                 if event.key == K_x:
                     pygame.quit()
                     sys.exit()
+
             elif event.type == KEYUP:
                 if event.key == K_w:
                     self.map.set_map_visibility(True)
+
+                    if not PLAYER.has_crashed():
+                        
+                        _player_position = PLAYER.get_position()
+                        PLAYER.set_position(VEC2 = _player_position)
+                        PLAYER.create_path(_player_position)
+
+                        PLAYER.set_last_start_position(PLAYER.get_position())
+                        PLAYER.set_good_paths( PLAYER.get_good_paths() + PLAYER.get_current_path())
+                        PLAYER.reset_current_path()
+
+                    elif PLAYER.has_crashed():
+
+                        PLAYER.set_position(PLAYER.get_last_start_position())
+                        PLAYER.set_last_start_position(PLAYER.get_position())
+                        PLAYER.set_bad_paths( PLAYER.get_current_path() )
+                        PLAYER.reset_current_path()
+
+                if event.key == K_s:
+                    print "trys:", PLAYER.get_trys(), "| fails: ", PLAYER.get_fails()
             #   if event.key == K_a:
             #       self.MODEL.player.stop()
 
@@ -71,9 +91,10 @@ class Controller:
 
         if self.wasd[0] == 1: # forward
             if not PLAYER.has_crashed():
-                _player_position.x = _player_position.x + math.sin(_player_direction)
-                _player_position.y = _player_position.y + math.cos(_player_direction)
-                PLAYER.set_position(VEC2 = _player_position)
+                _pos_x = _player_position[0] + math.sin(_player_direction)
+                _pos_y = _player_position[1] + math.cos(_player_direction)
+                PLAYER.set_position(VEC2 = (_pos_x,_pos_y))
+
             elif PLAYER.has_crashed():
                 self.map.set_map_visibility(True)
 
@@ -83,8 +104,8 @@ class Controller:
             PLAYER.create_path(_player_position)
     
         if self.wasd[2] == 1: # back
-
-            print len(PLAYER.get_path())
+            pass
+            #print "trys:", PLAYER.get_trys(), "| fails: ", PLAYER.get_fails()
 
         if self.wasd[3] == 1: # right
             
@@ -94,7 +115,7 @@ class Controller:
     def check_collision(self, PLAYER):
 
         _player_position = PLAYER.get_position()
-        _pixel_color = self.map.get_image().get_at((int(_player_position.x),int(_player_position.y)))
+        _pixel_color = self.map.get_image().get_at((int(_player_position[0]),int(_player_position[1])))
         if _pixel_color == self.map.get_off_color():
             PLAYER.set_crash_flag(True)
         elif _pixel_color == self.map.get_road_color():
