@@ -70,6 +70,8 @@ class Controller:
 
                     elif PLAYER.has_crashed():
 
+                        _player_position = PLAYER.get_position()
+                        PLAYER.create_path(_player_position)
                         PLAYER.set_position(PLAYER.get_last_start_position())
                         PLAYER.set_last_start_position(PLAYER.get_position())
                         PLAYER.set_bad_paths( PLAYER.get_current_path() )
