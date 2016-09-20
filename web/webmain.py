@@ -4,12 +4,20 @@ import time
 # for cookie_secret
 import base64, uuid
 
+import logging
+import tornado.escape
 import tornado.ioloop
 import tornado.web
 
 from tornado import gen
 
+from tornado.options import define, options, parse_command_line
+
 from GameLogic import GameLogic, Player, Lobby
+
+define("port", default=8888, help="run on the given port", type=int)
+define("debug", default=False, help="run in debug mode")
+
 
 class BaseHandler(tornado.web.RequestHandler):
 
@@ -27,6 +35,11 @@ class BaseHandler(tornado.web.RequestHandler):
         player_id = self.get_secure_cookie("user_id")
         return self.logic.get_player(int(player_id))
 
+    def get_current_lobby(self):
+        lobby_id = self.get_secure_cookie("lobby")
+        if lobby_id:
+            return self.logic.get_lobby(lobby_id)
+
     def set_current_user(self, user):
         if user:
             user_id = self.logic.add_player(user)
@@ -35,25 +48,36 @@ class BaseHandler(tornado.web.RequestHandler):
         else:
             self.clear_cookie("user")
             self.clear_cookie("user_id")
+            self.clear_cookie("lobby")
+
+    def set_current_lobby(self, lobby):
+        if lobby:
+            self.set_secure_cookie("lobby", lobby.id)
+            user = self.get_current_player()
+            self.logic.add_player_to_lobby(user, lobby)
+        else:
+            self.clear_cookie("lobby")
+
+
 
 class GameHandler(BaseHandler):
 
     def get(self):
-        self.render("templates/racer.html")
+        self.render("racer.html")
 
     def post(self):
         cmd = self.get_argument('cmd')
         if cmd:
             if cmd=="open":
                 lobby_link = self.logic.create_lobby(self.get_current_player())
-                self.redirect(u"/table/"+lobby_link)
+                self.redirect(u"/lobby/"+lobby_link)
             elif cmd=="join":
                 in_lobby = self.get_argument('lobby')
                 if in_lobby in self.logic.lobbys:
                     user = self.get_current_player()
                     lobby = self.logic.get_lobby(in_lobby)
-                    self.logic.add_player_to_lobby(user, lobby)
-                    self.redirect(u"/table/"+in_lobby)
+                    self.set_current_lobby(lobby)
+                    self.redirect(u"/lobby/"+in_lobby)
                 else:
                     self.write("Lobby doenst exist!")
 
@@ -62,22 +86,53 @@ class LobbyHandler(BaseHandler):
         
     @tornado.web.authenticated
     def get(self, lobby_id):
-        lobby = self.logic.get_lobby(lobby_id)
+        if lobby_id in self.logic.lobbys:
+            lobby = self.logic.get_lobby(lobby_id)
+            if self.get_current_lobby() != lobby:
+                self.set_current_lobby(lobby)
         
-        #encode player object to json
-        #players = [p.to_json() for p in lobby.players]
+            #encode player object to json
+            #players = [p.to_json() for p in lobby.players]
 
-        self.render("templates/table.html", 
-            players_in_lobby=lobby.players)
+            self.render("lobby.html", 
+                players_in_lobby=lobby.players,
+                messages=lobby.chat.cache)
 
+    def post(self, lobby_id):
+        if lobby_id in self.logic.lobbys:
+            lobby = self.logic.get_lobby(lobby_id)
+            if self.get_current_lobby() != lobby:
+                self.set_current_lobby(lobby)
+            print("IAM WORKING", ) 
+            self.render("lobby.html", 
+            players_in_lobby=lobby.players,
+            messages=lobby.chat.cache)
+
+    def on_connection_close(self):
+        user = self.get_current_player()
+        self.get_current_lobby().kick_player(user)
+
+class LobbyUpdateHandler(BaseHandler):
+    @gen.coroutine
     def post(self):
-        
-        self.redirect(u"/table/"+a)
+        cursor = self.get_argument("cursor", None)
+        # Save the future returned by wait_for_messages so we can cancel
+        # it in wait_for_messages
+        lobby = self.get_current_lobby()
+        self.future = lobby.chat.wait_for_messages(cursor=cursor)
+        messages = yield self.future
+        if self.request.connection.stream.closed():
+            return
+        self.write(dict(messages=messages))
+
+    def on_connection_close(self):
+        lobby = self.get_current_lobby()
+        lobby.chat.cancel_wait(self.future)
 
 class LoginHandler(BaseHandler):
 
     def get(self):
-        self.render("templates/racer.html")
+        self.render("login.html")
 
     def post(self):
         user_name = self.get_argument('name','')
@@ -103,6 +158,41 @@ class LogoutHandler(BaseHandler):
             self.clear_cookie("user")
             self.clear_cookie("user_id")
             self.redirect(u"/")
+
+class ChatMessageHandler(BaseHandler):
+    def post(self):
+        message = {
+            "id": str(uuid.uuid4()),
+            "body": self.get_argument("body"),
+        }
+        # to_basestring is necessary for Python 3's json encoder, which doesn't accept byte strings.
+        message["html"] = tornado.escape.to_basestring(
+            self.render_string("message.html", message=message))
+        if self.get_argument("next", None):
+            self.redirect(self.get_argument("next"))
+        else:
+            self.write(message)
+
+        lobby = self.get_current_lobby()
+        lobby.chat.new_messages([message])
+
+
+class ChatUpdateHandler(BaseHandler):
+    @gen.coroutine
+    def post(self):
+        cursor = self.get_argument("cursor", None)
+        # Save the future returned by wait_for_messages so we can cancel
+        # it in wait_for_messages
+        lobby = self.get_current_lobby()
+        self.future = lobby.chat.wait_for_messages(cursor=cursor)
+        messages = yield self.future
+        if self.request.connection.stream.closed():
+            return
+        self.write(dict(messages=messages))
+
+    def on_connection_close(self):
+        lobby = self.get_current_lobby()
+        lobby.chat.cancel_wait(self.future)
         
 @gen.coroutine
 def minute_loop(logic):
@@ -116,17 +206,22 @@ class CokeApp(tornado.web.Application):
     def __init__(self, logic):
         handlers=[
             (r"/", GameHandler, dict(logic=logic)),
-            (r"/table/([^/]*)", LobbyHandler, dict(logic=logic)),
+            (r"/lobby/([^/]*)", LobbyHandler, dict(logic=logic)),
             (r"/login", LoginHandler,dict(logic=logic)),
-            (r"/logout", LogoutHandler, dict(logic=logic))
+            (r"/logout", LogoutHandler, dict(logic=logic)),
+            (r"/chat/new", ChatMessageHandler, dict(logic=logic)),
+            (r"/chat/update", ChatUpdateHandler, dict(logic=logic))
         ]
 
         #create random + safe cookie_secret key
         secret = base64.b64encode(uuid.uuid4().bytes + uuid.uuid4().bytes)
         settings = {
-            "static_path": os.path.join(os.path.dirname(__file__), "templates"),
+            "static_path": os.path.join(os.path.dirname(__file__), "static"),
+            "template_path": os.path.join(os.path.dirname(__file__), "templates"),
             "cookie_secret": secret,
             "login_url": "/login",
+            "xsrf_cookies":True,
+            "debug":options.debug,
         }
         tornado.web.Application.__init__(self, handlers, **settings)
 
@@ -139,7 +234,7 @@ if __name__ == "__main__":
 
     logic = GameLogic()
     app = CokeApp(logic)
-    app.listen(8888)
+    app.listen(options.port)
 
     tornado.ioloop.IOLoop.current().spawn_callback(minute_loop, logic)
 

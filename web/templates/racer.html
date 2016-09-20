@@ -3,38 +3,62 @@
 <head>
     <title>Cops on Coke</title>
     <link type="text/css" rel="stylesheet" href="http://fonts.googleapis.com/css?family=Oswald:regular&amp;subset=latin"/>
-    
-    <link href= {{ static_url("cops-on-coke.css") }} rel="stylesheet" type="text/css">
+        
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <!-- Latest compiled and minified JavaScript -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+    <link rel="stylesheet" href="{{ static_url("css/cops-on-coke.css") }}"  type="text/css">
 </head>
 <body>
-    <div id="header" class="wrap">
-        <h3 class="headline">Cops on Coke</h3>
-    </div>
-    <div id="content" class="wrap">
+    <div id="wrapper" class="container">
+        <div id="header" class="row lobby-dark">
+            <h3 class="headline">Cops on Coke</h3>
+        </div>
         {% if current_user %}
-        <div id="game">
-            <form class="coke-form children-middle" action="" method="post">
-                Logged in as:<br>
-                <p class="form-input">{{current_user}} </p><br>
-                <button class="form-button text-red" type="submit" name="cmd" value="open">Create Lobby</button><br>
-                or <br>
-                <input class="form-input" type="text" name="lobby" value=""><br><br>
-                <button class="form-button text-red" type="submit" name="cmd" value="join">Join Lobby</button>
+        <div id="content" class="row center lobby-dark">
+            <form id="lobby-table" class="cops-border" action="" method="post">
+                <div class="col-lg-10">
+                    Logged in as:
+                </div>
+                <div class="col-lg-10">
+                    <p>{{current_user}} </p><br>
+                </div>
+                <div class="col-lg-10">
+                    <button class="btn" type="submit" name="cmd" value="open">Create Lobby</button>
+                <div>
+                <div class="col-lg-10">
+                    <p>or</p>
+                <div>
+                <div class="col-lg-10">
+                    <button class="form-button text-red" type="submit" name="cmd" value="join">Join Lobby</button>
+                </div>
+                <div class="col-lg-10">
+                    <input class="form-input" type="text" name="lobby" value="">
+                </div>
+                {% module xsrf_form_html() %}
             </form>
         </div>
         {% else %}
-        <div id="game">
-            <form class="coke-form children-small" action="http://localhost:8888/login" method="post">
+        <div id="content" class="row center lobby-dark">
+            <form id="start" class="cops-border" action="http://localhost:8888/login" method="post">
                 Name:<br>
-                <input class="form-input" type="text" name="name" value=""><br><br>
-                <button class="form-button" type="submit" name="start">Play</button>
+                <div class="col-lg-10">
+                    <input class="form-input" type="text" name="name" value=""><br><br>
+                </div>
+                <div class="col-lg-10">
+                    <button class="btn" type="submit" name="start">Play</button>
+                </div>
+                {% module xsrf_form_html() %}
             </form>
         </div>
         {% end %}
 
-    </div>
-    <div id="footer" class="wrap">
-        <div id="info">Enjoy</div>
+        <div id="footer" class="row lobby-dark">
+            <div id="info">Enjoy</div>
+        </div>
     </div>
 </body>
 </html>

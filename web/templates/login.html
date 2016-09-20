@@ -4,7 +4,7 @@
     <title>Cops on Coke</title>
     <link type="text/css" rel="stylesheet" href="http://fonts.googleapis.com/css?family=Oswald:regular&amp;subset=latin"/>
     
-    <link href= {{ static_url("cops-on-coke.css") }} rel="stylesheet" type="text/css">
+    <link href= {{ static_url("css/cops-on-coke.css") }} rel="stylesheet" type="text/css">
 </head>
 <body>
     <div id="header" class="wrap">
@@ -16,6 +16,7 @@
                 Name:<br>
                 <input class="form-input" type="text" name="name" value=""><br><br>
                 <button class="form-button" type="submit" name="start">Start</button>
+                {% module xsrf_form_html() %}
             </form>
         </div>
     </div>
