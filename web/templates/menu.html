@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cops on Coke</title>
+    <link type="text/css" rel="stylesheet" href="http://fonts.googleapis.com/css?family=Oswald:regular&amp;subset=latin"/>
+        
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+    <link rel="stylesheet" href="{{ static_url("css/cops-on-coke.css") }}"  type="text/css">
+</head>
+<body>
+    <div id="header" class="wrap">
+        <h3 class="headline">Cops on Coke</h3>
+    </div>
+    {% if current_user %}
+    <div id="menu" class="wrap">
+        <form class="coke-form children-middle" action="" method="post">
+            Logged in as:
+            <p class="form-input">{{current_user}}</p><br>
+            <button class="form-button" type="submit" name="cmd" value="open">Create Lobby</button><br>
+            <p>or</p>
+            <button class="form-button" type="submit" name="cmd" value="join">Join Lobby</button><br><br>
+            <input class="form-input" type="text" name="lobby" value="" placeholder="Enter Lobby-ID">
+            {% module xsrf_form_html() %}
+        </form>
+    </div>
+    {% else %}
+    <div id="login" class="wrap">
+        <form id="start" class="coke-form children" action="http://localhost:8888/login" method="post">
+            Name:<br>
+            <input class="form-input" type="text" name="name" value=""><br><br>
+            <button class="form-button" type="submit" name="start">Play</button>
+            {% module xsrf_form_html() %}
+        </form>
+    </div>
+    {% end %}
+        <div id="footer" class="wrap">
+            <div id="info">Enjoy</div>
+        </div>
+    </div>
+</body>
+</html>

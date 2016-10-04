@@ -1,0 +1,22 @@
+<div class="lobby-entry" id="p{{ player['id'] }}">
+    <h3>{{player['state']}}</h3>
+    {% if player['state'] == 0 %}
+    <div class="lobby-ready-state">
+        <i class="fa fa-square" aria-hidden="true"></i>
+    </div>
+    {% elif player['state'] == 1 %}
+    <div class="lobby-ready-state">
+        <i class="fa fa-check-square" aria-hidden="true"></i>
+    </div>
+    {% end %}
+    <p class="lobby-name">{{player['name']}}</p>
+    {% if player['name'] == current_user %}
+    <form id="stateform" action="{{request.uri}}/updater" method="post">
+        <input  type="hidden" name="state" value="{{player['state']}}" id="hidden-state-field">
+        <input class="lobby-ready-button" id="ready-button" type="submit" name="ready_button"  value="Wait">
+    <!-- onclick="changeValue();" -->
+        {% module xsrf_form_html() %}
+    </form>
+    {% end %}
+    <div class="clear"></div>
+</div>

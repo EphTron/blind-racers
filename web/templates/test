@@ -1,0 +1,40 @@
+test
+
+
+{% if player.name == current_user %}
+<div class="form-group lobby-entry">
+    <h3>{{player.state}}</h3>
+    {% if player.state == 0 %}
+    <div id="my-state" class="form-group">
+        <span class="glyphicon glyphicon-remove"></span>
+    </div> 
+    {% elif player.state == 1 %}
+    <div id="my-state" class="form-group">
+        <span class="glyphicon glyphicon-ok"></span>
+    </div>
+    {% end %}
+    <div id="player-name" class="form-group center"> 
+        <p>{{player.name}}</p>
+        <input class="lobby-chat-input" type="hidden" name="state" value="{{player.state}}" id="hidden-state-field">
+    </div> 
+    <div id="player-button" class="form-group center"> 
+        <input id="ready-button" class="btn" type="submit" name="ready_button"  value="Wait">
+    </div>
+    <!-- onclick="changeValue();" -->
+</div>
+{% else %}
+<div class="row lobby-entry">
+    {% if player.state == 0 %}
+    <div class="form-group">
+        <span class="glyphicon glyphicon-remove"></span>
+    </div> 
+    {% elif player.state == 1 %}
+    <div class="form-group">
+        <span class="glyphicon glyphicon-ok"></span>
+    </div>
+    {% end %}
+    <div class="form-group lobby-name">
+        <p> {{player.name}}</p>
+    </div>
+</div>
+{% end %}

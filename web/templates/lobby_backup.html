@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cops on Coke</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link type="text/css" rel="stylesheet" href="http://fonts.googleapis.com/css?family=Oswald:regular&amp;subset=latin"/>
+    
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <!-- Latest compiled and minified JavaScript -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+    <link rel="stylesheet" href="{{ static_url("css/cops-on-coke.css") }}"  type="text/css">
+</head>
+<body>
+    <div id="wrapper" class="container">
+        <div id="header" class="row lobby-dark">
+            <h3 class="headline">Cops on Coke</h3>
+        </div>
+        <div id="content" class="row center lobby-dark">
+            <div id="game" class="col-lg-10 center">
+                <form id="lobby-table" class="form-inline cops-border" action="{{request.uri}}/updater" method="post">
+                    <p>Players in this Lobby:{{request.uri}}</p>
+
+                    {% for player in players_in_lobby %}
+                        {% if player.name == current_user %}
+                        <div class="form-group lobby-entry">
+                            <h3>{{player.state}}</h3>
+                            {% if player.state == 0 %}
+                            <div id="my-state" class="form-group">
+                                <span class="glyphicon glyphicon-remove"></span>
+                            </div> 
+                            {% elif player.state == 1 %}
+                            <div id="my-state" class="form-group">
+                                <span class="glyphicon glyphicon-ok"></span>
+                            </div>
+                            {% end %}
+                            <div id="player-name" class="form-group center"> 
+                                <p>{{player.name}}</p>
+                                <input class="lobby-chat-input" type="hidden" name="state" value="{{player.state}}" id="hidden-state-field">
+                            </div> 
+                            
+                            <div id="player-button" class="form-group center"> 
+                                <input id="ready-button" class="btn" type="submit" name="ready_button"  value="Wait">
+                            </div>
+                            <!-- onclick="changeValue();" -->
+                        </div>
+                        {% else %}
+                        <div class="row lobby-entry">
+                            {% if player.state == 0 %}
+                            <div class="form-group">
+                                <span class="glyphicon glyphicon-remove"></span>
+                            </div> 
+                            {% elif player.state == 1 %}
+                            <div class="form-group">
+                                <span class="glyphicon glyphicon-ok"></span>
+                            </div>
+                            {% end %}
+                            <div class="form-group lobby-name">
+                                <p> {{player.name}}</p>
+                            </div>
+                        </div>
+                        {% end %}
+                    {% end %}
+                {% module xsrf_form_html() %}
+                </form>
+                <div id="lobby-chat">
+                    <div id="inbox">
+                    {% for message in messages %}
+                        {% module Template("message.html", message=message) %}
+                    {% end %}
+                    </div>
+                    <div id="input">
+                        <form action="/chat/new" method="post" id="messageform">
+                            <input class="lobby-chat-input" type="text" name="body" id="message">
+                            <input class="lobby-button" type="submit" value="{{ _("Post") }}">
+                            <input type="hidden" name="next" value="{{ request.path }}">
+                            <div class="clear"></div>
+                            {% module xsrf_form_html() %}
+                        </form>
+                    </div>
+                    <div class="clear"></div>
+                </div>
+                <script type="text/javascript">
+                var xhttp;
+                if (window.XMLHttpRequest) {
+                    xhttp = new XMLHttpRequest();
+                    } else {
+                    // code for IE6, IE5
+                    xhttp = new ActiveXObject("Microsoft.XMLHTTP");
+                }       
+                </script>
+            </div>
+        </div>
+        <div id="footer" class="row lobby-dark">
+            <div id="info">Enjoy</div>
+        </div>
+    </div> <!-- wrapper -->
+    <script src="{{ static_url("js/lobby.js") }}" type="text/javascript"></script>
+
+</body>
+</html>
