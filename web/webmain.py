@@ -1,5 +1,6 @@
 import os.path
 import time
+import json
 
 # for cookie_secret
 import base64, uuid
@@ -13,7 +14,7 @@ from tornado import gen
 
 from tornado.options import define, options, parse_command_line
 
-from GameLogic import GameLogic, Player, Lobby
+from GameLogic import GameLogic, Player, Lobby, ComplexEncoder
 
 define("port", default=8888, help="run on the given port", type=int)
 define("debug", default=False, help="run in debug mode")
@@ -33,7 +34,8 @@ class BaseHandler(tornado.web.RequestHandler):
 
     def get_current_player(self):
         player_id = self.get_secure_cookie("user_id")
-        return self.logic.get_player(int(player_id))
+        if player_id:
+            return self.logic.get_player(int(player_id))
 
     def get_current_lobby(self):
         lobby_id = self.get_secure_cookie("lobby")
@@ -55,6 +57,7 @@ class BaseHandler(tornado.web.RequestHandler):
             self.set_secure_cookie("lobby", lobby.id)
             user = self.get_current_player()
             self.logic.add_player_to_lobby(user, lobby)
+
         else:
             self.clear_cookie("lobby")
 
@@ -62,9 +65,11 @@ class BaseHandler(tornado.web.RequestHandler):
 
 class GameHandler(BaseHandler):
 
+    @tornado.web.authenticated
     def get(self):
-        self.render("racer.html")
+        self.render("menu.html")
 
+    @tornado.web.authenticated
     def post(self):
         cmd = self.get_argument('cmd')
         if cmd:
@@ -89,45 +94,105 @@ class LobbyHandler(BaseHandler):
         if lobby_id in self.logic.lobbys:
             lobby = self.logic.get_lobby(lobby_id)
             if self.get_current_lobby() != lobby:
+                print("setting lobby")
                 self.set_current_lobby(lobby)
-        
+            
+            pla = self.get_current_player()
+            print("test",pla.reprJSON())
             #encode player object to json
+            players = []
+            print("Lobby",lobby.players)
+            for p in lobby.players:
+                print(p)
+                players.append(p.reprJSON())
+                #players.append(jsonpickle.encode(p))
+                #players.append(p.to_json())
+
+            print("jsooon",players)
             #players = [p.to_json() for p in lobby.players]
 
             self.render("lobby.html", 
-                players_in_lobby=lobby.players,
-                messages=lobby.chat.cache)
+                command="setup",
+                players_in_lobby=players)
 
     def post(self, lobby_id):
+        print("Post Lobby")
         if lobby_id in self.logic.lobbys:
             lobby = self.logic.get_lobby(lobby_id)
+            
             if self.get_current_lobby() != lobby:
                 self.set_current_lobby(lobby)
-            print("IAM WORKING", ) 
+
+            state = self.get_argument('ready_button')
+            if state:
+                print("Input of Post",state)
+                player = self.get_current_player()
+                player.state = state
+            
             self.render("lobby.html", 
-            players_in_lobby=lobby.players,
-            messages=lobby.chat.cache)
+                players_in_lobby=lobby.players)
 
     def on_connection_close(self):
         user = self.get_current_player()
         self.get_current_lobby().kick_player(user)
 
+class LobbyChangeHandler(BaseHandler):
+    def post(self, lobby_id):
+        print("Lobby Change Handler")
+        player = self.get_current_player()
+        new_state =  self.get_argument("state")
+        if new_state:
+            print("Input of Post",new_state)
+            player = self.get_current_player()
+            player.state = new_state
+        print("state",player)
+
+        if self.get_argument("next", None):
+            self.redirect(self.get_argument("next"))
+        else:
+            self.write(player.reprJSON())
+
+        lobby = self.get_current_lobby()
+        lobby.update_player(player)
+
 class LobbyUpdateHandler(BaseHandler):
     @gen.coroutine
-    def post(self):
+    def post(self, lobby_id):
+        print("Post Lobby Update")
+
+        if lobby_id in self.logic.lobbys:
+            lobby = self.logic.get_lobby(lobby_id)
+
         cursor = self.get_argument("cursor", None)
+
+        lobby_of_player = self.get_current_lobby()
+        if lobby_of_player:
+            if lobby_of_player != lobby:
+                return
+
         # Save the future returned by wait_for_messages so we can cancel
         # it in wait_for_messages
-        lobby = self.get_current_lobby()
-        self.future = lobby.chat.wait_for_messages(cursor=cursor)
-        messages = yield self.future
+        self.future = lobby.wait_for_players(cursor=cursor)
+        players = yield self.future
+
         if self.request.connection.stream.closed():
             return
-        self.write(dict(messages=messages))
+
+        p = []
+        if hasattr(players,'reprJSON'):
+            print("case 1")
+            self.write(players.reprJSON())
+            print("Sending",players.reprJSON())
+        else:
+            print("case 2")
+            for pla in players:
+                p.append(pla.reprJSON())
+                self.write(p)
+                print("Sending",p)
 
     def on_connection_close(self):
         lobby = self.get_current_lobby()
-        lobby.chat.cancel_wait(self.future)
+        lobby.cancel_wait(self.future)
 
 class LoginHandler(BaseHandler):
 
@@ -160,7 +225,9 @@ class LogoutHandler(BaseHandler):
             self.redirect(u"/")
 
 class ChatMessageHandler(BaseHandler):
+
     def post(self):
+        print("Post Chat Message")
         message = {
             "id": str(uuid.uuid4()),
             "body": self.get_argument("body"),
@@ -180,7 +247,9 @@ class ChatMessageHandler(BaseHandler):
 class ChatUpdateHandler(BaseHandler):
     @gen.coroutine
     def post(self):
+        print("Post Chat Update")
         cursor = self.get_argument("cursor", None)
+        print("Chat updater", cursor)
         # Save the future returned by wait_for_messages so we can cancel
         # it in wait_for_messages
         lobby = self.get_current_lobby()
@@ -207,6 +276,8 @@ class CokeApp(tornado.web.Application):
         handlers=[
             (r"/", GameHandler, dict(logic=logic)),
             (r"/lobby/([^/]*)", LobbyHandler, dict(logic=logic)),
+            (r"/lobby/([^/]*)/change", LobbyChangeHandler, dict(logic=logic)),
+            (r"/lobby/([^/]*)/update", LobbyUpdateHandler, dict(logic=logic)),
             (r"/login", LoginHandler,dict(logic=logic)),
             (r"/logout", LogoutHandler, dict(logic=logic)),
             (r"/chat/new", ChatMessageHandler, dict(logic=logic)),
