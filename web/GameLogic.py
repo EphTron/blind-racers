@@ -5,6 +5,8 @@ import json
 
 import logging
 
+import tornado.escape
+
 from tornado.concurrent import Future
 
 
@@ -80,9 +82,11 @@ class Player(object):
         self.state = 0
 
     def reprJSON(self):
-        return dict(id=self.id, 
-            name=self.name,
-            state=self.state)
+        json ={"id":self.id, 
+            "name":self.name,
+            "state":self.state
+            }
+        return json
 
     def set_lobby(self,lobby):
         self.lobby = lobby
@@ -116,9 +120,11 @@ class Lobby(object):
         player.set_lobby(self)
 
     def reprJSON(self):
-        return dict(id=self.id,
-            time=self.time,
-            state=self.state)
+        json = {"id":self.id,
+            "time":self.time,
+            "state":self.state}
+        print("json repr:", json)
+        return json
 
     def add_player(self, player):
         # can be replaced by fct new_players
