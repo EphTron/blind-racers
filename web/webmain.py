@@ -91,29 +91,24 @@ class LobbyHandler(BaseHandler):
         
     @tornado.web.authenticated
     def get(self, lobby_id):
+
         if lobby_id in self.logic.lobbys:
             lobby = self.logic.get_lobby(lobby_id)
+
             if self.get_current_lobby() != lobby:
-                print("setting lobby")
                 self.set_current_lobby(lobby)
             
-            pla = self.get_current_player()
-            print("test",pla.reprJSON())
             #encode player object to json
             players = []
-            print("Lobby",lobby.players)
             for p in lobby.players:
-                print(p)
-                players.append(p.reprJSON())
-                #players.append(jsonpickle.encode(p))
+                player = p.reprJSON()
+                players.append(player)
                 #players.append(p.to_json())
 
-            print("jsooon",players)
-            #players = [p.to_json() for p in lobby.players]
+            print("Players as JSON:", players)
 
             self.render("lobby.html", 
-                command="setup",
-                players_in_lobby=players)
+                        players_in_lobby=players)
 
     def post(self, lobby_id):
         print("Post Lobby")
@@ -124,33 +119,41 @@ class LobbyHandler(BaseHandler):
                 self.set_current_lobby(lobby)
 
             state = self.get_argument('ready_button')
+
             if state:
                 print("Input of Post",state)
                 player = self.get_current_player()
                 player.state = state
-            
-            self.render("lobby.html", 
-                players_in_lobby=lobby.players)
+
+            self.redirect(u"/"+str(lobby_id))
+
+            #self.render("lobby.html", 
+            #    players_in_lobby=lobby.players)
 
     def on_connection_close(self):
         user = self.get_current_player()
         self.get_current_lobby().kick_player(user)
 
+
 class LobbyChangeHandler(BaseHandler):
     def post(self, lobby_id):
         print("Lobby Change Handler")
+
         player = self.get_current_player()
+
         new_state =  self.get_argument("state")
         if new_state:
             print("Input of Post",new_state)
             player = self.get_current_player()
             player.state = new_state
-        print("state",player)
+
 
         if self.get_argument("next", None):
             self.redirect(self.get_argument("next"))
         else:
-            self.write(player.reprJSON())
+            json = player.reprJSON()
+            print("Writing Player as JSON:",json)
+            self.write(json)
 
         lobby = self.get_current_lobby()
         lobby.update_player(player)
@@ -181,14 +184,14 @@ class LobbyUpdateHandler(BaseHandler):
         p = []
         if hasattr(players,'reprJSON'):
             print("case 1")
-            self.write(players.reprJSON())
+            self.write(dict(players=players.reprJSON()))
             print("Sending",players.reprJSON())
         else:
             print("case 2")
             for pla in players:
                 p.append(pla.reprJSON())
-                self.write(p)
-                print("Sending",p)
+            self.write(dict(players=p))
+            print("Sending",p)
 
     def on_connection_close(self):
         lobby = self.get_current_lobby()
