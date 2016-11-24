@@ -11,19 +11,24 @@
 // WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 // License for the specific language governing permissions and limitations
 // under the License.
-var players = "";
+var players = [];
 
-function set_players(val)
-{
-    players = val;
-    test = "{ 'players' :"+val +"}";
-    console.log("Players: ",players, test);
+class Player {
+  constructor(id, name, state) {
+    console.log("id:", id, "name:", name)
+    this.id = id;
+    this.name = name;
+    this.state = state;
+    console.log("created player", this)
+  }
 
-    check = JSON.parse(test);
-    console.log("") 
+  changeState(new_state){
+    this.state = new_state;
+  }
 }
 
 $(document).ready(function() {
+
     if (!window.console) window.console = {};
     if (!window.console.log) window.console.log = function() {};
 
@@ -45,6 +50,14 @@ $(document).ready(function() {
     $("#hidden-state-field").select();
     updater.poll();
 });
+
+function add_player(player_id, player_name, player_state){
+    var p = new Player(player_id, player_name, player_state);
+    console.log(p.name)
+    players.push(p);
+    console.log(players);
+}
+
 
 function newMessage(form) {
     var message = form.formToDict();
@@ -159,8 +172,9 @@ var updater = {
         try {
             console.log("wooooorks",response)
             //var json = '{"result":true,"count":1}',
-            var player = JSON.parse(response);
-            updater.newMessages(player);
+            var players = JSON.parse(response);
+            console.log(players)
+            updater.newPlayer(players);
             //updater.newMessages(eval("(" + response + ")"));
         } catch (e) {
             updater.onError();
@@ -174,6 +188,99 @@ var updater = {
         updater.errorSleepTime *= 2;
         console.log("Poll error; sleeping for", response,updater.errorSleepTime, "ms");
         window.setTimeout(updater.poll, updater.errorSleepTime);
+    },
+
+    newPlayer: function(response) {
+        console.log("Received",response)
+        if (!response.players) return;
+        updater.cursor = response.players;
+        
+
+        console.log("Going to add player", response.players);
+        //for (player in response.players){
+            for(var i = 0; i < players.length; i++) {
+                if (players[i].id == response.players.id) {
+
+                    players[i].changeState(response.players.state);
+                    console.log("updating");
+                    updater.updatePlayerEntry(players[i]);
+                    break;
+                } else {
+                    console.log("no ideaaaa",response.players)
+                    var p = new Player(response.players.id,
+                                       response.players.name,
+                                       response.players.state);
+                    players.push(p);
+                    console.log("new player",p);
+                    updater.showPlayerEntry(p);
+                }
+            }
+        //}
+
+        console.log("Updated playeres",players)
+
+    },
+
+    showPlayerEntry: function(player) {
+        console.log("Test")
+        var existing = $("#p" + player.id);
+        if (existing.length > 0) return;
+        console.log("geht nocht")
+        var node = updater.createLobbyEntry("lobby-table",player.id,
+                                    player.name, 
+                                    player.state);
+        /*console.log(node);
+        node.hide();
+        $("#lobby-table").append(node);
+        node.slideDown();
+        console.log("say what?!");*/
+    },
+
+    updatePlayerEntry:function(player) {
+        var existing = $("#p" + player.id);
+        if (existing.length > 0) return;
+        var node = $(message.html);
+        node.hide();
+        $("#inbox").append(node);
+        node.slideDown();
+    },
+
+    createLobbyEntry:function(parent,id, name, state){
+        console.log("creating Lobby Entry");
+        var lobby_entry = document.createElement("div");
+        console.log("wirklih");
+        lobby_entry.className = "lobby-entry";
+        console.log(0);
+        lobby_entry.id = "p"+toString(id);
+        console.log("asdsdfsdgdfgddf");
+
+        var player_state = document.createElement("div");
+        player_state.className = "lobby-ready-state";
+        var state_icon = document.createElement("i");
+        console.log("1")
+        if (state == 0) {
+            state_icon.className = "fa fa-square"
+            state_icon.setAttribute("aria-hidden", "true");
+        } else if (state == 1) {
+            state_icon.className = "fa fa-check-square"
+            state_icon.setAttribute("aria-hidden", "true");
+        }
+        console.log("2")
+        player_state.append(state_icon);
+
+        console.log("3")
+        var player_name = document.createElement("p");
+        player_name.className = "lobby-name";
+        player_name.innerHTML = name;
+
+        clear_div = document.createElement("div");
+        clear_div.className = "clear";
+
+        lobby_entry.append(player_state);
+        lobby_entry.append(player_name);
+        lobby_entry.append(clear_div);
+        console.log("created Lobby Entry")
+        $("#"+parent).append(lobby_entry);
     },
 
     newMessages: function(response) {
