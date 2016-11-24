@@ -1,6 +1,5 @@
-<div class="lobby-entry" id="p{{ player['id'] }}">
-    <h3>{{player['state']}}</h3>
-    {% if player['state'] == 0 %}
+<div class="lobby-entry" id="p{{(player["id"]) }}">
+    {% if player["state"] == 0 %}
     <div class="lobby-ready-state">
         <i class="fa fa-square" aria-hidden="true"></i>
     </div>
