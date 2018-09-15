@@ -62,7 +62,6 @@ class BaseHandler(tornado.web.RequestHandler):
             self.clear_cookie("lobby")
 
 
-
 class GameHandler(BaseHandler):
 
     @tornado.web.authenticated
@@ -73,22 +72,22 @@ class GameHandler(BaseHandler):
     def post(self):
         cmd = self.get_argument('cmd')
         if cmd:
-            if cmd=="open":
+            if cmd == "open":
                 lobby_link = self.logic.create_lobby(self.get_current_player())
-                self.redirect(u"/lobby/"+lobby_link)
-            elif cmd=="join":
+                self.redirect(u"/lobby/" + lobby_link)
+            elif cmd == "join":
                 in_lobby = self.get_argument('lobby')
                 if in_lobby in self.logic.lobbys:
                     user = self.get_current_player()
                     lobby = self.logic.get_lobby(in_lobby)
                     self.set_current_lobby(lobby)
-                    self.redirect(u"/lobby/"+in_lobby)
+                    self.redirect(u"/lobby/" + in_lobby)
                 else:
                     self.write("Lobby doenst exist!")
 
 
 class LobbyHandler(BaseHandler):
-        
+
     @tornado.web.authenticated
     def get(self, lobby_id):
 
@@ -97,37 +96,37 @@ class LobbyHandler(BaseHandler):
 
             if self.get_current_lobby() != lobby:
                 self.set_current_lobby(lobby)
-            
-            #encode player object to json
+
+            # encode player object to json
             players = []
             for p in lobby.players:
                 player = p.reprJSON()
                 players.append(player)
-                #players.append(p.to_json())
+                # players.append(p.to_json())
 
             print("Players as JSON:", players)
 
-            self.render("lobby.html", 
+            self.render("lobby.html",
                         players_in_lobby=players)
 
     def post(self, lobby_id):
         print("Post Lobby")
         if lobby_id in self.logic.lobbys:
             lobby = self.logic.get_lobby(lobby_id)
-            
+
             if self.get_current_lobby() != lobby:
                 self.set_current_lobby(lobby)
 
             state = self.get_argument('ready_button')
 
             if state:
-                print("Input of Post",state)
+                print("Input of Post", state)
                 player = self.get_current_player()
                 player.state = state
 
-            self.redirect(u"/"+str(lobby_id))
+            self.redirect(u"/" + str(lobby_id))
 
-            #self.render("lobby.html", 
+            # self.render("lobby.html",
             #    players_in_lobby=lobby.players)
 
     def on_connection_close(self):
@@ -141,22 +140,22 @@ class LobbyChangeHandler(BaseHandler):
 
         player = self.get_current_player()
 
-        new_state =  self.get_argument("state")
+        new_state = self.get_argument("state")
         if new_state:
-            print("Input of Post",new_state)
+            print("Input of Post", new_state)
             player = self.get_current_player()
             player.state = new_state
-
 
         if self.get_argument("next", None):
             self.redirect(self.get_argument("next"))
         else:
             json = player.reprJSON()
-            print("Writing Player as JSON:",json)
+            print("Writing Player as JSON:", json)
             self.write(json)
 
         lobby = self.get_current_lobby()
         lobby.update_player(player)
+
 
 class LobbyUpdateHandler(BaseHandler):
     @gen.coroutine
@@ -182,20 +181,21 @@ class LobbyUpdateHandler(BaseHandler):
             return
 
         p = []
-        if hasattr(players,'reprJSON'):
+        if hasattr(players, 'reprJSON'):
             print("case 1")
             self.write(dict(players=players.reprJSON()))
-            print("Sending",players.reprJSON())
+            print("Sending", players.reprJSON())
         else:
             print("case 2")
             for pla in players:
                 p.append(pla.reprJSON())
             self.write(dict(players=p))
-            print("Sending",p)
+            print("Sending", p)
 
     def on_connection_close(self):
         lobby = self.get_current_lobby()
         lobby.cancel_wait(self.future)
+
 
 class LoginHandler(BaseHandler):
 
@@ -203,13 +203,14 @@ class LoginHandler(BaseHandler):
         self.render("login.html")
 
     def post(self):
-        user_name = self.get_argument('name','')
+        user_name = self.get_argument('name', '')
 
         if user_name is not None:
             if not self.get_secure_cookie('user'):
                 self.set_current_user(user_name)
 
         self.redirect(u"/")
+
 
 class LogoutHandler(BaseHandler):
 
@@ -222,10 +223,11 @@ class LogoutHandler(BaseHandler):
     def post(self):
         logout = self.get_argument('logout', '')
 
-        if logout=="logout":
+        if logout == "logout":
             self.clear_cookie("user")
             self.clear_cookie("user_id")
             self.redirect(u"/")
+
 
 class ChatMessageHandler(BaseHandler):
 
@@ -265,7 +267,8 @@ class ChatUpdateHandler(BaseHandler):
     def on_connection_close(self):
         lobby = self.get_current_lobby()
         lobby.chat.cancel_wait(self.future)
-        
+
+
 @gen.coroutine
 def minute_loop(logic):
     while True:
@@ -276,36 +279,37 @@ def minute_loop(logic):
 class CokeApp(tornado.web.Application):
 
     def __init__(self, logic):
-        handlers=[
+        handlers = [
             (r"/", GameHandler, dict(logic=logic)),
             (r"/lobby/([^/]*)", LobbyHandler, dict(logic=logic)),
             (r"/lobby/([^/]*)/change", LobbyChangeHandler, dict(logic=logic)),
             (r"/lobby/([^/]*)/update", LobbyUpdateHandler, dict(logic=logic)),
-            (r"/login", LoginHandler,dict(logic=logic)),
+            (r"/login", LoginHandler, dict(logic=logic)),
             (r"/logout", LogoutHandler, dict(logic=logic)),
             (r"/chat/new", ChatMessageHandler, dict(logic=logic)),
             (r"/chat/update", ChatUpdateHandler, dict(logic=logic))
         ]
 
-        #create random + safe cookie_secret key
+        # create random + safe cookie_secret key
         secret = base64.b64encode(uuid.uuid4().bytes + uuid.uuid4().bytes)
         settings = {
             "static_path": os.path.join(os.path.dirname(__file__), "static"),
             "template_path": os.path.join(os.path.dirname(__file__), "templates"),
             "cookie_secret": secret,
             "login_url": "/login",
-            "xsrf_cookies":True,
-            "debug":options.debug,
+            "xsrf_cookies": True,
+            "debug": options.debug,
         }
         tornado.web.Application.__init__(self, handlers, **settings)
+
 
 def make_app():
     logic = GameLogic()
     app = CokeApp(logic)
     return _app
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     logic = GameLogic()
     app = CokeApp(logic)
     app.listen(options.port)
